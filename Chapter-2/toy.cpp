@@ -1,6 +1,17 @@
 /*--------------------------------
 *   * The lexer and AST and parser
 *    --------------------------- */
+#include <cstdlib>
+#include <string>
+#include <string.h>
+#include <vector>
+#include <cctype>
+
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Module.h"
+#include "llvm/IR/Verifier.h"
 using namespace std;
 enum Token_Type {
         EOF_TOKEN = 0,
@@ -11,7 +22,7 @@ enum Token_Type {
 };
 static int Numeric_Val;
 static std::string Identifier_string;
-
+FILE *file;
 static int get_token()
 {
         static int LastChar = ' ';
@@ -79,7 +90,7 @@ class NumericAST : public BaseAST
 {
         int numeric_val;
         public:
-                NumericAST(intval) : numeric_val(val) {}
+                NumericAST(int val) : numeric_val(val) {}
 };
 //binary operation expressions: op and two operands matter
 class BinaryAST : public BaseAST
@@ -97,7 +108,7 @@ class FunctionDeclAST
         std::vector<std::string> Arguments;
         public:
                 FunctionDeclAST(const std::string &name, const std::vector<std::string> &args):
-                        Func_Name(name), Arguments(args) {};
+                        Func_Name(name), Arguments(args) {}
 };
 //Function definition: declaration (name and arg vector) and body.
 class FunctionDefnAST
@@ -105,7 +116,7 @@ class FunctionDefnAST
         FunctionDeclAST *Func_Decl;
         BaseAST* Body;
         public:
-                FunctionDefnAST(FunctionDeclAST *proto, BaseAST *body) : Func_Decl(proto), Body(body)()
+                FunctionDefnAST(FunctionDeclAST *proto, BaseAST *body) : Func_Decl(proto), Body(body){}
 };
 //Function call: name of callee and function arguments
 class FunctionCallAST : public BaseAST
@@ -113,30 +124,21 @@ class FunctionCallAST : public BaseAST
         std::string Function_Callee;
         std::vector<BaseAST *> Function_Arguments;
         public:
-                FunctionCallAST(const std::string &Callee, sts::vector<BaseAST*> &args):
-                        Function_Callee(callee), Function_Arguments(args){}
+                FunctionCallAST(const std::string &Callee, std::vector<BaseAST*> &args):
+                        Function_Callee(Callee), Function_Arguments(args){}
 };
 /*-----------
 * Parser
 -----------*/
 //store in the Current token 
 static int Current_token;
-static void next_token()
+static int next_token()
 {
         Current_token = get_token();
+        return Current_token;
 }
-//return different parser for current token
-static BaseAST* Base_Parser()
-{
-        switch(Current_token)
-        {
-                default: return 0;
-                case IDENTIFIER_TOKEN : return identifier_parser();
-                case NUMERIC_TOKEN : return numeric_parser();
-                case '(' : return paran_parser();
-        }
-}
-static BaseAST *numberic_parser()
+static BaseAST* paran_parser();
+static BaseAST *numeric_parser()
 {
         BaseAST *Result = new NumericAST(Numeric_Val);
         next_token();
@@ -171,6 +173,25 @@ static BaseAST* identifier_parser()
         next_token();
 
         return new FunctionCallAST(IdName, Args);
+}
+//return different parser for current token
+static BaseAST* Base_Parser()
+{
+        switch(Current_token)
+        {
+                default: return 0;
+                case IDENTIFIER_TOKEN : return identifier_parser();
+                case NUMERIC_TOKEN : return numeric_parser();
+                case '(' : return paran_parser();
+        }
+}
+static BaseAST* binary_op_parser(int, BaseAST *);
+static BaseAST* expression_parser()
+{
+        BaseAST *LHS = Base_Parser();
+        if(!LHS)
+                return 0;
+        return binary_op_parser(0, LHS);
 }
 static FunctionDeclAST *func_decl_parser()
 {
@@ -208,14 +229,9 @@ static FunctionDefnAST *func_defn_parser()
         }
         return 0;
 }
-static BaseAST* expression_parser()
-{
-        BaseAST *LHS = Base_Parser();
-        if(!LHS)
-                return 0;
-        return binary_op_parser(0, LHS);
-}
-static std::map<char, int> operator_Precedence;
+
+
+static std::map<char, int> Operator_Precedence;
 static void init_precedence()
 {
         Operator_Precedence['-'] = 1;
@@ -227,8 +243,7 @@ static int getBinOpPrecedence()
 {
         if (!isascii(Current_token))
                 return -1;
-        
-        int TokPrec = operator_Precedence[Current_token];
+        int TokPrec = Operator_Precedence[Current_token];
         if(TokPrec <= 0) return -1;
 
         return TokPrec;
@@ -272,7 +287,7 @@ static void HandleDefn()
 {
         if(FunctionDefnAST *F = func_defn_parser())
         {
-                if(Function *LF = F -> Codegen())
+                if(llvm::Function *LF = F -> Codegen())
                 {
 
                 }
@@ -286,7 +301,7 @@ static void HandleTopExpression()
 {
         if(FunctionDefnAST *F = top_level_parser())
         {
-                if(Function *LF = F ->Codegen())
+                if(llvm::Function *LF = F ->Codegen())
                 {
 
                 }
@@ -309,9 +324,9 @@ static void Driver()
                 }
         }
 }
-int main()
+int main(int argc, char *argv[])
 {
-        LLVMContext &Context = getGlobalContext();
+        llvm::LLVMContext &Context = getGlobalContext();
         init_precedence();
         file = fopen(argv[1], "r");
         if(file == 0)
@@ -319,7 +334,7 @@ int main()
                 printf("File not found.\n");
         }
         next_token();
-        Module *Module_Ob = new Module("TOY Compiler", Context);
+        llvm::Module *Module_Ob = new llvm::Module("TOY Compiler", Context);
         Driver();
         Module_Ob->dump();
         return 0;
