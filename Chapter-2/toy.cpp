@@ -23,6 +23,11 @@ enum Token_Type {
 static int Numeric_Val;
 static std::string Identifier_string;
 FILE *file;
+static llvm::Module *Module_Ob;
+static llvm::LLVMContext TheGlobalContext;
+static llvm::IRBuilder<> Builder(TheGlobalContext);
+static std::map<std::string, llvm::Value*> Named_Values;
+
 static int get_token()
 {
         static int LastChar = ' ';
@@ -77,6 +82,7 @@ class BaseAST
 {
         public:
         virtual ~BaseAST();
+        virtual llvm::Value* Codegen() = 0;
 };
 //AST class for variable expressions, name matters most
 class VariableAST : public BaseAST
@@ -84,6 +90,7 @@ class VariableAST : public BaseAST
         std::string Var_Name;
         public:
                 VariableAST(std::string &name) : Var_Name(name){}
+        virtual llvm::Value* Codegen();
 };
 //for numeric expressions: value matters
 class NumericAST : public BaseAST
@@ -91,7 +98,17 @@ class NumericAST : public BaseAST
         int numeric_val;
         public:
                 NumericAST(int val) : numeric_val(val) {}
+        virtual llvm::Value *Codegen();
 };
+llvm::Value *NumericAST::Codegen()
+{
+        return llvm::ConstantInt::get(llvm::Type::getInt32Ty(TheGlobalContext), numeric_val);
+}
+llvm::Value *VariableAST::Codegen()
+{
+        llvm::Value *V = Named_Values[Var_Name];
+        return V? V : 0;
+}
 //binary operation expressions: op and two operands matter
 class BinaryAST : public BaseAST
 {
@@ -100,7 +117,23 @@ class BinaryAST : public BaseAST
         public:
         BinaryAST(std::string op, BaseAST *lhs, BaseAST *rhs): 
                 Bin_Operator(op), LHS(lhs), RHS(rhs) {}
+        virtual llvm::Value* Codegen();
 };
+llvm::Value *BinaryAST::Codegen()
+{
+        llvm::Value *L = LHS->Codegen();
+        llvm::Value *R = RHS->Codegen();
+        if(L == 0 || R == 0) return 0;
+
+        switch(atoi(Bin_Operator.c_str()))
+        {
+                case '+': return Builder.CreateAdd(L, R, "addtmp");
+                case '-': return Builder.CreateSub(L, R, "subtmp");
+                case '*': return Builder.CreateMul(L, R, "multmp");
+                case '/': return Builder.CreateUDiv(L, R, "divtmp");
+                default: return 0;
+        }
+}
 //Function declaration: name and arg vector, why no ret value.
 class FunctionDeclAST
 {
@@ -109,6 +142,7 @@ class FunctionDeclAST
         public:
                 FunctionDeclAST(const std::string &name, const std::vector<std::string> &args):
                         Func_Name(name), Arguments(args) {}
+        virtual llvm::Function* Codegen();
 };
 //Function definition: declaration (name and arg vector) and body.
 class FunctionDefnAST
@@ -117,6 +151,7 @@ class FunctionDefnAST
         BaseAST* Body;
         public:
                 FunctionDefnAST(FunctionDeclAST *proto, BaseAST *body) : Func_Decl(proto), Body(body){}
+        virtual llvm::Function* Codegen();
 };
 //Function call: name of callee and function arguments
 class FunctionCallAST : public BaseAST
@@ -126,7 +161,63 @@ class FunctionCallAST : public BaseAST
         public:
                 FunctionCallAST(const std::string &Callee, std::vector<BaseAST*> &args):
                         Function_Callee(Callee), Function_Arguments(args){}
+        virtual llvm::Value* Codegen();
 };
+llvm::Value *FunctionCallAST::Codegen()
+{
+        llvm::Function *CalleeF = Module_Ob->getFunction(Function_Callee);
+        vector<llvm::Value*> ArgsV;
+        for(unsigned i =0, e = Function_Arguments.size(); i != e; i++)
+        {
+                ArgsV.push_back(Function_Arguments[i] -> Codegen());
+                if(ArgsV.back() == 0) return 0;
+        }
+        return Builder.CreateCall(CalleeF, ArgsV, "calltemp");
+}
+llvm::Function *FunctionDeclAST::Codegen()
+{
+        vector<llvm::Type*> Integers(Arguments.size(), llvm::Type::getInt32Ty(TheGlobalContext));
+        llvm::FunctionType *FT = llvm::FunctionType::get(llvm::Type::getInt32Ty(TheGlobalContext), Integers, false);
+        llvm::Function *F = llvm::Function::Create(FT, llvm::Function::ExternalLinkage, Func_Name, Module_Ob);
+
+        if(F->getName() != Func_Name)
+        {
+                F -> eraseFromParent();
+                F = Module_Ob->getFunction(Func_Name);
+
+                if(!F->empty())
+                        return 0;
+                if(F -> arg_size() != Arguments.size())
+                        return 0;
+        }
+        unsigned Idx = 0;
+        for(llvm::Function::arg_iterator Arg_It = F->arg_begin(); Idx != Arguments.size(); ++Arg_It, ++Idx)
+        {
+                Arg_It->setName(Arguments[Idx]);
+                Named_Values[Arguments[Idx]] = Arg_It;
+        }
+        return F;
+}
+llvm::Function *FunctionDefnAST::Codegen()
+{
+        Named_Values.clear();
+
+        llvm::Function *TheFunction = Func_Decl->Codegen();
+        if(TheFunction == 0)
+                return 0;
+        llvm::BasicBlock *BB = llvm::BasicBlock::Create(TheGlobalContext, "entry", TheFunction);
+        Builder.SetInsertPoint(BB);
+
+        if(llvm::Value *RetVal = Body->Codegen())
+        {
+                Builder.CreateRet(RetVal);
+                verifyFunction(*TheFunction);
+                return TheFunction;
+        }
+
+        TheFunction->eraseFromParent();
+        return 0;
+}
 /*-----------
 * Parser
 -----------*/
@@ -138,11 +229,21 @@ static int next_token()
         return Current_token;
 }
 static BaseAST* paran_parser();
+static BaseAST* Base_Parser();
+static BaseAST* binary_op_parser(int, BaseAST *);
+
 static BaseAST *numeric_parser()
 {
         BaseAST *Result = new NumericAST(Numeric_Val);
         next_token();
         return Result;
+}
+static BaseAST* expression_parser()
+{
+        BaseAST *LHS = Base_Parser();
+        if(!LHS)
+                return 0;
+        return binary_op_parser(0, LHS);
 }
 static BaseAST* identifier_parser()
 {
@@ -185,14 +286,7 @@ static BaseAST* Base_Parser()
                 case '(' : return paran_parser();
         }
 }
-static BaseAST* binary_op_parser(int, BaseAST *);
-static BaseAST* expression_parser()
-{
-        BaseAST *LHS = Base_Parser();
-        if(!LHS)
-                return 0;
-        return binary_op_parser(0, LHS);
-}
+
 static FunctionDeclAST *func_decl_parser()
 {
         if(Current_token != IDENTIFIER_TOKEN)
@@ -324,9 +418,10 @@ static void Driver()
                 }
         }
 }
+
 int main(int argc, char *argv[])
 {
-        llvm::LLVMContext &Context = getGlobalContext();
+        //llvm::LLVMContext &Context = getGlobalContext();
         init_precedence();
         file = fopen(argv[1], "r");
         if(file == 0)
@@ -334,7 +429,7 @@ int main(int argc, char *argv[])
                 printf("File not found.\n");
         }
         next_token();
-        llvm::Module *Module_Ob = new llvm::Module("TOY Compiler", Context);
+        Module_Ob = new llvm::Module("TOY Compiler", TheGlobalContext);
         Driver();
         Module_Ob->dump();
         return 0;
