@@ -27,6 +27,7 @@ static llvm::Module *Module_Ob;
 static llvm::LLVMContext TheGlobalContext;
 static llvm::IRBuilder<> Builder(TheGlobalContext);
 static std::map<std::string, llvm::Value*> Named_Values;
+static llvm::FunctionPassManager *Global_FP;
 
 static int get_token()
 {
@@ -84,13 +85,14 @@ class BaseAST
         virtual ~BaseAST();
         virtual llvm::Value* Codegen() = 0;
 };
+BaseAST::~BaseAST(){}
 //AST class for variable expressions, name matters most
 class VariableAST : public BaseAST
 {
         std::string Var_Name;
         public:
                 VariableAST(std::string &name) : Var_Name(name){}
-        virtual llvm::Value* Codegen();
+                virtual llvm::Value* Codegen();
 };
 //for numeric expressions: value matters
 class NumericAST : public BaseAST
@@ -212,6 +214,7 @@ llvm::Function *FunctionDefnAST::Codegen()
         {
                 Builder.CreateRet(RetVal);
                 verifyFunction(*TheFunction);
+                //Global_FP->run(*TheFunction);
                 return TheFunction;
         }
 
@@ -391,6 +394,16 @@ static void HandleDefn()
                 next_token();
         }
 }
+static FunctionDefnAST *top_level_parser()
+{
+        if (BaseAST *E = expression_parser()) {
+                FunctionDeclAST *Func_Decl =
+                        new FunctionDeclAST("", std::vector<std::string>());
+                return new FunctionDefnAST(Func_Decl, E);
+        }
+        return 0;
+
+}
 static void HandleTopExpression()
 {
         if(FunctionDefnAST *F = top_level_parser())
@@ -409,6 +422,7 @@ static void Driver()
 {
         while(1)
         {
+                //printf("Current_token: %c \n", Current_token);
                 switch(Current_token)
                 {       
                         case EOF_TOKEN: return;
@@ -426,11 +440,14 @@ int main(int argc, char *argv[])
         file = fopen(argv[1], "r");
         if(file == 0)
         {
-                printf("File not found.\n");
+             printf("File not found.\n");
         }
         next_token();
-        Module_Ob = new llvm::Module("TOY Compiler", TheGlobalContext);
+        Module_Ob = new llvm::Module(argv[1], TheGlobalContext);
+        llvm::FunctionPassManager FP(Module_Ob);
+        Global_FP = &FP;
         Driver();
         Module_Ob->dump();
+        //Module_Ob->print(llvm::outs(), nullptr);
         return 0;
 }
