@@ -54,10 +54,10 @@ static int get_token()
                         Identifier_string += LastChar;
 
                 if (Identifier_string == "def") {
-                	std::cout<<"string: "<<Identifier_string<<": "<<"DEF_TOKEN"<<"\n"; 
+                	//std::cout<<"string: "<<Identifier_string<<": "<<"DEF_TOKEN"<<"\n"; 
 		       	return DEF_TOKEN;
 		}
-                std::cout<<"string: "<<Identifier_string<<": "<<"IDENTIFIER_TOKEN"<<"\n";
+                //std::cout<<"string: "<<Identifier_string<<": "<<"IDENTIFIER_TOKEN"<<"\n";
                 return IDENTIFIER_TOKEN;
         }
 
@@ -73,7 +73,7 @@ static int get_token()
 
                 //turn string to int
                 Numeric_Val = strtod(NumStr.c_str(), 0);
-                std::cout<<"Numeric_Val: "<<Numeric_Val<<": "<<"NUMERIC_TOKEN"<<"\n";
+                //std::cout<<"Numeric_Val: "<<Numeric_Val<<": "<<"NUMERIC_TOKEN"<<"\n";
                 return NUMERIC_TOKEN;
         }
         //identify the comment, skip it and analyze it
@@ -87,14 +87,14 @@ static int get_token()
                         return get_token();
         }
         if(LastChar == EOF) {
-		std::cout<<"EOF_TOKEN\n";
+		//std::cout<<"EOF_TOKEN\n";
                 return EOF_TOKEN;
 	}
         //Other characters, such as comma, parenthesis
         int ThisChar = LastChar;
         LastChar = fgetc(file);
 	//char realChar = LastChar;
-	std::cout<<"Other Case: "<<ThisChar<<": "<<"OTHERS"<<"\n";
+	//std::cout<<"Other Case: "<<ThisChar<<": "<<"OTHERS"<<"\n";
         return ThisChar;
 }
 //AST for different types
@@ -166,10 +166,10 @@ class FunctionDeclAST
         public:
                 FunctionDeclAST(const std::string &name, const std::vector<std::string> &args):
                         Func_Name(name), Arguments(args) {
-			cout<<"Initialize a FunctionDeclAST:\n";
-			cout<<"Func_Name: "<<Func_Name<<"\n";
-			for (auto arg : Arguments)
-				cout<<"arg: "<<arg<<"\n";
+			//cout<<"Initialize a FunctionDeclAST:\n";
+			//cout<<"Func_Name: "<<Func_Name<<"\n";
+			//for (auto arg : Arguments)
+				//cout<<"arg: "<<arg<<"\n";
 	}
         virtual llvm::Function* Codegen();
 };
@@ -205,14 +205,15 @@ llvm::Value *FunctionCallAST::Codegen()
 }
 llvm::Function *FunctionDeclAST::Codegen()
 {
-	std::cout<<"Inside FunctionDeclAST \n";
+	//std::cout<<"Inside FunctionDeclAST \n";
+
         vector<llvm::Type*> Integers(Arguments.size(), llvm::Type::getInt32Ty(TheGlobalContext));
         llvm::FunctionType *FT = llvm::FunctionType::get(llvm::Type::getInt32Ty(TheGlobalContext), Integers, false);
         llvm::Function *F = llvm::Function::Create(FT, llvm::Function::ExternalLinkage, Func_Name, Module_Ob);
-	std::cout<<"F->getName() : "<<F->getName().str()<<", Func_Name: "<<Func_Name<<"\n";
+	//std::cout<<"F->getName() : "<<F->getName().str()<<", Func_Name: "<<Func_Name<<"\n";
         if(F->getName().str() != Func_Name)
         {
-		std::cout<<"erase from parent.\n";
+		//std::cout<<"erase from parent.\n";
                 F -> eraseFromParent();
                 F = Module_Ob->getFunction(Func_Name);
 
@@ -231,11 +232,11 @@ llvm::Function *FunctionDeclAST::Codegen()
 }
 llvm::Function *FunctionDefnAST::Codegen()
 {
-	cout<<"Inside Function Definition AST Codegen : \n";
+	//cout<<"Inside Function Definition AST Codegen : \n";
         Named_Values.clear();
 
         llvm::Function *TheFunction = Func_Decl->Codegen();
-	llvm::errs()<<"The Function: \n"<<*TheFunction<<"\n";
+	//llvm::errs()<<"The Function: \n"<<*TheFunction<<"\n";
         if(TheFunction == 0) {
 		cout<<"TheFunction == 0.\n";
                 return 0;
@@ -278,7 +279,7 @@ static BaseAST *numeric_parser()
 }
 static BaseAST* expression_parser()
 {
-	cout<<"Inside expression_parser()\n";
+	//cout<<"Inside expression_parser()\n";
         BaseAST *LHS = Base_Parser();
         if(!LHS) {
 		cout<<"!LHS\n";
@@ -288,6 +289,7 @@ static BaseAST* expression_parser()
 }
 static BaseAST* identifier_parser()
 {
+        //cout<<"Inside identifier_parser()\n";
         std::string IdName = Identifier_string;
         next_token();
         if(Current_token != '(')
@@ -319,8 +321,8 @@ static BaseAST* identifier_parser()
 //return different parser for current token
 static BaseAST* Base_Parser()
 {
-	cout<<"Inside Base_Parser()\n";
-	cout<<"Current_token:"<<Current_token<<"\n";
+	//cout<<"Inside Base_Parser()\n";
+	//cout<<"Current_token:"<<Current_token<<"\n";
         switch(Current_token)
         {
                 case IDENTIFIER_TOKEN : return identifier_parser();
@@ -332,12 +334,12 @@ static BaseAST* Base_Parser()
 
 static FunctionDeclAST *func_decl_parser()
 {
-	cout<<"Inside func_decl_parser():\n";
+	//cout<<"Inside func_decl_parser():\n";
         if(Current_token != IDENTIFIER_TOKEN)
                 return 0;
         
         std::string FnName = Identifier_string;
-	cout<<"FnName: "<<FnName<<"\n";
+	//cout<<"FnName: "<<FnName<<"\n";
         next_token();
 
         if(Current_token != '(')
@@ -348,18 +350,18 @@ static FunctionDeclAST *func_decl_parser()
         while(next_token() == IDENTIFIER_TOKEN)
         {
                 Function_Argument_Names.push_back(Identifier_string);
-		cout<<"Identifier_string: "<<Identifier_string<<"\n";
+		//cout<<"Identifier_string: "<<Identifier_string<<"\n";
         }
 
         if(Current_token != ')')
                 return 0;
         next_token();
-	cout<<"create FunctionDeclAST.\n";
+	//cout<<"create FunctionDeclAST.\n";
         return new FunctionDeclAST(FnName, Function_Argument_Names);
 }
 static FunctionDefnAST *func_defn_parser()
 {
-	cout<<"Inside function func_defn_parser():\n";
+	//cout<<"Inside function func_defn_parser():\n";
         next_token();
         FunctionDeclAST *Decl = func_decl_parser();
         if(Decl == 0)
@@ -367,7 +369,7 @@ static FunctionDefnAST *func_defn_parser()
         
         if(BaseAST *Body = expression_parser())
         {
-		cout<<"new FunctionDefnAST: \n";
+		//cout<<"new FunctionDefnAST: \n";
                 return new FunctionDefnAST(Decl, Body);
         }
         return 0;
@@ -392,17 +394,17 @@ static int getBinOpPrecedence()
 }
 static BaseAST* binary_op_parser(int Old_Prec, BaseAST *LHS)
 {
-	cout<<"Inside binary_op_parser():\n";
+	//cout<<"Inside binary_op_parser():\n";
         while(1)
         {
 		// the binary op is not the prefix expression, why it get the op
 		//directly at the begining.
                 int Operator_Prec = getBinOpPrecedence();
-		cout<<"Operator_Prec :"<<Operator_Prec<<"\n";
+		//cout<<"Operator_Prec :"<<Operator_Prec<<"\n";
                 if(Operator_Prec < Old_Prec)
                         return LHS;
                 int BinOp = Current_token;
-		cout<<"BinOp : "<<BinOp<<"\n";
+		//cout<<"BinOp : "<<BinOp<<"\n";
                 next_token();
 
                 BaseAST* RHS = Base_Parser();
@@ -410,7 +412,7 @@ static BaseAST* binary_op_parser(int Old_Prec, BaseAST *LHS)
                         return 0;
 
                 int Next_Prec = getBinOpPrecedence();
-		cout<<"Next_Prec :"<<Next_Prec<<"\n";
+		//cout<<"Next_Prec :"<<Next_Prec<<"\n";
                 if(Operator_Prec < Next_Prec)
                 {
                         RHS = binary_op_parser(Operator_Prec + 1, RHS);
@@ -419,7 +421,7 @@ static BaseAST* binary_op_parser(int Old_Prec, BaseAST *LHS)
                 }
                 LHS = new BinaryAST(std::to_string(BinOp), LHS, RHS);
         }
-	cout<<"End of binary_op_parser.\n";
+	//cout<<"End of binary_op_parser.\n";
 }
 static BaseAST* paran_parser()
 {
@@ -448,7 +450,7 @@ static void HandleDefn()
 }
 static FunctionDefnAST *top_level_parser()
 {
-	cout<<"Inside top_level_parser()\n";
+	//cout<<"Inside top_level_parser()\n";
         if (BaseAST *E = expression_parser()) {
                 FunctionDeclAST *Func_Decl =
                         new FunctionDeclAST("", std::vector<std::string>());
@@ -459,7 +461,7 @@ static FunctionDefnAST *top_level_parser()
 }
 static void HandleTopExpression()
 {
-	cout<<"Inside HandleTopExpression():\n";
+	//cout<<"Inside HandleTopExpression():\n";
         if(FunctionDefnAST *F = top_level_parser())
         {
                 if(llvm::Function *LF = F ->Codegen())
@@ -475,24 +477,24 @@ static void HandleTopExpression()
 //Driver function
 static void Driver()
 {
-	cout<<"Inside Driver :\n";
+	//cout<<"Inside Driver :\n";
         while(1)
         {
                 //printf("Current_token: %c \n", Current_token);
-		cout<<"Current_token : "<<Current_token<<"\n";
+		//cout<<"Current_token : "<<Current_token<<"\n";
                 switch(Current_token)
                 {       
                         case EOF_TOKEN: return;
                         case ';': next_token(); break;
 			//Handle definition
                         case DEF_TOKEN: {
-				std::cout<<"HandleDefn: \n";
+				//std::cout<<"HandleDefn: \n";
 				HandleDefn(); 
 				break;
 			}
 			//Handle expression
                         default: {
-				std::cout<<"handleTopExpr: \n";
+				//std::cout<<"handleTopExpr: \n";
 				HandleTopExpression(); 
 				break;
 			}
