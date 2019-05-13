@@ -50,31 +50,31 @@ static int get_token()
                         Identifier_string += LastChar;
 
                 if (Identifier_string == "def") {
-                        //printf("string: %s : DEF_TOKEN\n", Identifier_string.c_str());
+                        printf("string: %s : DEF_TOKEN\n", Identifier_string.c_str());
                         return DEF_TOKEN;
                 }
                 if (Identifier_string == "if") {
-                        //printf("string: %s : IF_TOKEN\n", Identifier_string.c_str());
+                        printf("string: %s : IF_TOKEN\n", Identifier_string.c_str());
                         return IF_TOKEN;
                 }
                 if(Identifier_string == "then") {
-                        //printf("string: %s : THEN_TOKEN\n", Identifier_string.c_str());
+                        printf("string: %s : THEN_TOKEN\n", Identifier_string.c_str());
                         return THEN_TOKEN;
                 }
                 if(Identifier_string == "else") {
-                        //printf("string: %s : ELSE_TOKEN\n", Identifier_string.c_str());
+                        printf("string: %s : ELSE_TOKEN\n", Identifier_string.c_str());
                         return ELSE_TOKEN;
                 }
 		if(Identifier_string == "for") {
-                        //printf("string: %s : FOR_TOKEN\n", Identifier_string.c_str());
+                        printf("string: %s : FOR_TOKEN\n", Identifier_string.c_str());
                         return FOR_TOKEN;
                 }
                         
                 if(Identifier_string == "in") {
-                        //printf("string: %s : IN_TOKEN\n", Identifier_string.c_str());
+                        printf("string: %s : IN_TOKEN\n", Identifier_string.c_str());
                         return IN_TOKEN;
                 }
-                //printf("string: %s : IDENTIFIER_TOKEN\n", Identifier_string.c_str());
+                printf("string: %s : IDENTIFIER_TOKEN\n", Identifier_string.c_str());
                 //std::cout<<"string: "<<Identifier_string<<": "<<"IDENTIFIER_TOKEN"<<"\n";
                 return IDENTIFIER_TOKEN;
         }
@@ -91,7 +91,7 @@ static int get_token()
 
                 //turn string to int
                 Numeric_Val = strtod(NumStr.c_str(), 0);
-                //printf("Numeric_Val: %d : NUMERIC_TOKEN\n", Numeric_Val);
+                printf("Numeric_Val: %d : NUMERIC_TOKEN\n", Numeric_Val);
                 return NUMERIC_TOKEN;
         }
         //identify the comment, skip it and analyze it
@@ -105,14 +105,14 @@ static int get_token()
                         return get_token();
         }
         if(LastChar == EOF) {
-		//printf("EOF_TOKEN\n");
+		printf("EOF_TOKEN\n");
                 return EOF_TOKEN;
 	}
         //Other characters, such as comma, parenthesis
         int ThisChar = LastChar;
         LastChar = fgetc(file);
 	//char realChar = LastChar;
-        //printf("Other Case: %d : OTHERS\n", ThisChar);
+        printf("Other Case: %d : OTHERS\n", ThisChar);
         return ThisChar;
 }
 //AST for different types
@@ -247,8 +247,8 @@ class FunctionDeclAST
         public:
                 FunctionDeclAST(const std::string &name, const std::vector<std::string> &args):
                         Func_Name(name), Arguments(args) {
-                                //printf("Initialize a FunctionDeclAST:\n");
-                                //printf("Func_Name : %s\n", Func_Name.c_str());
+                                printf("Initialize a FunctionDeclAST:\n");
+                                printf("Func_Name : %s\n", Func_Name.c_str());
                                 //for (auto arg : Arguments)
                                 //       printf("Arg : %s\n", arg.c_str()); 
                         }
@@ -336,7 +336,7 @@ llvm::Function *FunctionDefnAST::Codegen()
 static int Current_token;
 static int next_token()
 {
-        //printf("Inside next_token():\n");
+        printf("Inside next_token():\n");
         Current_token = get_token();
         return Current_token;
 }
@@ -352,7 +352,7 @@ static BaseAST *numeric_parser()
 }
 static BaseAST* expression_parser()
 {
-        //printf("Inside expression_parser:\n");
+        printf("Inside expression_parser:\n");
         BaseAST *LHS = Base_Parser();
         if(!LHS)
                 return 0;
@@ -360,27 +360,27 @@ static BaseAST* expression_parser()
 }
 static BaseAST *If_parser()
 {
-        //printf("Inside If_parser:\n");
+        printf("Inside If_parser:\n");
         next_token();
 
         BaseAST *Cond = expression_parser();
         if(!Cond)
                 return 0;
-        //printf("Done with Cond!\n");
+        printf("Done with Cond!\n");
         if(Current_token != THEN_TOKEN)
                 return 0;
         next_token();
         BaseAST *Then = expression_parser();
         if(Then == 0)
                 return 0;
-        //printf("Done with Then!\n");
+        printf("Done with Then!\n");
         if(Current_token != ELSE_TOKEN)
                 return 0;
         next_token();
         BaseAST *Else = expression_parser();
         if(!Else)
                 return 0;
-        //printf("Done with Else!\n");
+        printf("Done with Else!\n");
         return new ExprIfAST(Cond, Then, Else);
 }
 static BaseAST *For_parser()
@@ -425,7 +425,7 @@ static BaseAST *For_parser()
 
 static BaseAST* identifier_parser()
 {
-        //printf("Inside identifier_parser:\n");
+        printf("Inside identifier_parser:\n");
         std::string IdName = Identifier_string;
         next_token();
         if(Current_token != '(')
@@ -457,7 +457,7 @@ static BaseAST* identifier_parser()
 //return different parser for current token
 static BaseAST* Base_Parser()
 {
-        //printf("Inside Base_Parser:\n");
+        printf("Inside Base_Parser:\n");
         switch(Current_token)
         {
                 default: return 0;
@@ -470,8 +470,8 @@ static BaseAST* Base_Parser()
 
 static FunctionDeclAST *func_decl_parser()
 {
-        //printf("Inside func_decl_parser:\n");
-        //printf("Current_token: %d\n", Current_token);
+        printf("Inside func_decl_parser:\n");
+        printf("Current_token: %d\n", Current_token);
         if(Current_token != IDENTIFIER_TOKEN)
                 return 0;
         
@@ -486,21 +486,21 @@ static FunctionDeclAST *func_decl_parser()
 
         while(next_token() == IDENTIFIER_TOKEN)
         {
-                //printf("Identifier_string: %s \n", Identifier_string.c_str());
+                printf("Identifier_string: %s \n", Identifier_string.c_str());
                 Function_Argument_Names.push_back(Identifier_string);
         }
 
         if(Current_token != ')')
                 return 0;
         next_token();
-        //printf("FnName: %s \n", FnName.c_str());
+        printf("FnName: %s \n", FnName.c_str());
         return new FunctionDeclAST(FnName, Function_Argument_Names);
 }
 static FunctionDefnAST *func_defn_parser()
 {
-        //printf("Inside func_defn_parser:\n");
+        printf("Inside func_defn_parser:\n");
         next_token();
-        //printf("Current_token: %d\n", Current_token);
+        printf("Current_token: %d\n", Current_token);
         FunctionDeclAST *Decl = func_decl_parser();
         if(Decl == 0)
                 return 0;
@@ -524,15 +524,15 @@ static void init_precedence()
 }
 static int getBinOpPrecedence()
 {
-        //printf("Inside getBinOpPrecedence:\n");
-        //printf("Current_token = %d\n", Current_token);
+        printf("Inside getBinOpPrecedence:\n");
+        printf("Current_token = %d\n", Current_token);
 
         //BookError: isascii->find==end
         if (Operator_Precedence.find(Current_token) == Operator_Precedence.end()) {
                 return -1;
         }
         int TokPrec = Operator_Precedence[Current_token];
-        //printf("Operator_Precedence = %d\n", TokPrec);
+        printf("Operator_Precedence = %d\n", TokPrec);
         //BookError: TokPrec<=0 ->TokPrec<0
         if(TokPrec < 0) return -1;
 
@@ -540,11 +540,11 @@ static int getBinOpPrecedence()
 }
 static BaseAST* binary_op_parser(int Old_Prec, BaseAST *LHS)
 {
-        ////printf("Inside binary_op_parser:\n");
+        printf("Inside binary_op_parser:\n");
         while(1)
         {
                 int Operator_Prec = getBinOpPrecedence();
-                ////printf("Old_Prec = %d, Operator_Prec = %d \n", Old_Prec, Operator_Prec);
+                printf("Old_Prec = %d, Operator_Prec = %d \n", Old_Prec, Operator_Prec);
                 if(Operator_Prec < Old_Prec)
                         return LHS;
                 int BinOp = Current_token;
@@ -615,20 +615,20 @@ static void HandleTopExpression()
 }
 static void Driver()
 {
-        //printf("Inside Driver():\n");
+        printf("Inside Driver():\n");
         while(1)
         {
-                //printf("Current_token: %c \n", Current_token);
+                printf("Current_token: %c \n", Current_token);
                 switch(Current_token)
                 {       
                         case EOF_TOKEN: return;
                         case ';': next_token(); break;
                         case DEF_TOKEN: 
-                                //printf("HandleDefn: \n");
+                                printf("HandleDefn: \n");
                                 HandleDefn(); 
                                 break;
                         default: 
-                                //printf("handleTopExpr: \n");
+                                printf("handleTopExpr: \n");
                                 HandleTopExpression(); 
                                 break;
                 }
