@@ -1,5 +1,0 @@
-def fib(x)
-    if x < 3 then
-        1
-    Else
-        fib(x-1)+fib(x-2)
