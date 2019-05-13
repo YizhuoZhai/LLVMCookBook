@@ -1,2 +1,3 @@
-for i=1, i<n, 1 1 in 
-	x+y
+def printstar(n x)
+    for i = 1, i < n, 1 in 
+        x + 1
