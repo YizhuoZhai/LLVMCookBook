@@ -25,7 +25,9 @@ enum Token_Type {
         THEN_TOKEN,
         ELSE_TOKEN,
 	FOR_TOKEN,
-	IN_TOKEN
+	IN_TOKEN,
+        BINARY_TOKEN,
+        UNARY_TOKEN
 };
 static int Numeric_Val;
 static std::string Identifier_string;
@@ -35,7 +37,15 @@ static llvm::LLVMContext TheGlobalContext;
 static llvm::IRBuilder<> Builder(TheGlobalContext);
 static std::map<std::string, llvm::Value*> Named_Values;
 static llvm::FunctionPassManager *Global_FP;
-
+static std::map<char, int> Operator_Precedence;
+static void init_precedence()
+{
+        Operator_Precedence['<'] = 0;
+        Operator_Precedence['-'] = 1;
+        Operator_Precedence['+'] = 2;
+        Operator_Precedence['/'] = 3;
+        Operator_Precedence['*'] = 4;
+}
 static int get_token()
 {
         static int LastChar = ' ';
@@ -73,6 +83,10 @@ static int get_token()
                 if(Identifier_string == "in") {
                         //printf("string: %s : IN_TOKEN\n", Identifier_string.c_str());
                         return IN_TOKEN;
+                }
+                if(Identifier_string == "binary") {
+                        //printf("string: %s : IN_TOKEN\n", Identifier_string.c_str());
+                        return BINARY_TOKEN;
                 }
                 //printf("string: %s : IDENTIFIER_TOKEN\n", Identifier_string.c_str());
                 //std::cout<<"string: "<<Identifier_string<<": "<<"IDENTIFIER_TOKEN"<<"\n";
@@ -228,8 +242,12 @@ llvm::Value *BinaryAST::Codegen()
                 case '<': 
                         L = Builder.CreateICmpULT(L, R, "cmptmp");
                         return Builder.CreateZExt(L, llvm::Type::getInt32Ty(TheGlobalContext), "booltmp");
-                default: return 0;
+                default: break;
         }
+        //BookError: "Op" Undefined
+        llvm::Function *F = Module_Ob->getFunction(std::string("binary")+Bin_Operator.c_str());
+        llvm::Value *Ops[2] = {L, R};
+        return Builder.CreateCall(F, Ops, "binop");
 }
 llvm::Value *ExprForAST::Codegen(){
 	llvm::Value *StartVal = Start->Codegen();
@@ -285,20 +303,34 @@ llvm::Value *ExprForAST::Codegen(){
         return llvm::Constant::getNullValue(llvm::Type::getInt32Ty(TheGlobalContext));
 }
 //Function declaration: name and arg vector, why no ret value.
+//Also the binary and unary operations
 class FunctionDeclAST
 {
         std::string Func_Name;
         std::vector<std::string> Arguments;
+        bool isOperator;
+        unsigned Precedence;
+
         public:
-                FunctionDeclAST(const std::string &name, const std::vector<std::string> &args):
-                        Func_Name(name), Arguments(args) {
+                FunctionDeclAST(const std::string &name, const std::vector<std::string> &args, 
+                                bool isoperator = false, unsigned prec = 0):
+                        Func_Name(name), Arguments(args), isOperator(isoperator), Precedence(prec) {
                                 //printf("Initialize a FunctionDeclAST:\n");
                                 //printf("Func_Name : %s\n", Func_Name.c_str());
                                 //for (auto arg : Arguments)
                                 //       printf("Arg : %s\n", arg.c_str()); 
                         }
-        virtual llvm::Function* Codegen();
+                bool isUnaryOp() const {return isOperator && Arguments.size()==1;}
+                bool isBinaryOp() const {return isOperator && Arguments.size()==2;}
+                
+                char getOperatorName() const {
+                        assert(isUnaryOp() || isBinaryOp());
+                        return Func_Name[Func_Name.size() - 1];
+                }
+                unsigned getBinaryPrecedence() const {return Precedence;}
+                virtual llvm::Function* Codegen();
 };
+
 //Function definition: declaration (name and arg vector) and body.
 class FunctionDefnAST
 {
@@ -360,6 +392,9 @@ llvm::Function *FunctionDefnAST::Codegen()
         llvm::Function *TheFunction = Func_Decl->Codegen();
         if(TheFunction == 0)
                 return 0;
+
+        if (Func_Decl->isBinaryOp())
+                Operator_Precedence[Func_Decl->getOperatorName()] = Func_Decl->getBinaryPrecedence();
         llvm::BasicBlock *BB = llvm::BasicBlock::Create(TheGlobalContext, "entry", TheFunction);
         Builder.SetInsertPoint(BB);
 
@@ -374,6 +409,7 @@ llvm::Function *FunctionDefnAST::Codegen()
         TheFunction->eraseFromParent();
         return 0;
 }
+
 /*-----------
 * Parser
 -----------*/
@@ -521,12 +557,44 @@ static FunctionDeclAST *func_decl_parser()
 {
         //printf("Inside func_decl_parser:\n");
         //printf("Current_token: %d\n", Current_token);
-        if(Current_token != IDENTIFIER_TOKEN)
-                return 0;
-        
-        std::string FnName = Identifier_string;
-        
-        next_token();
+        std::string FnName;
+
+        unsigned Kind = 0;
+        unsigned BinaryPrecedence = 30;
+
+        switch (Current_token) {
+                default: return 0;
+                case IDENTIFIER_TOKEN:
+                        FnName = Identifier_string;
+                        Kind = 0;
+                        next_token();
+                        break;
+                case UNARY_TOKEN:
+                        next_token();
+                        if (!isascii(Current_token))
+                                return 0;
+                        FnName = "unary";
+                        FnName += (char)Current_token;
+                        Kind = 1;
+                        next_token();
+                        break;
+                case BINARY_TOKEN:
+                        next_token();
+                        if (!isascii(Current_token))
+                                return 0;
+                        FnName = "binary";
+                        FnName += (char)Current_token;
+                        Kind = 2;
+                        next_token();
+
+                        if (Current_token == NUMERIC_TOKEN) {
+                                if (Numeric_Val < 1 || Numeric_Val > 100)
+                                        return 0;
+                                BinaryPrecedence = (unsigned)Numeric_Val;
+                                next_token();
+                        }
+                        break;
+        }
 
         if(Current_token != '(')
                 return 0;
@@ -543,7 +611,9 @@ static FunctionDeclAST *func_decl_parser()
                 return 0;
         next_token();
         //printf("FnName: %s \n", FnName.c_str());
-        return new FunctionDeclAST(FnName, Function_Argument_Names);
+        if (Kind && Function_Argument_Names.size() != Kind)
+                return 0;
+        return new FunctionDeclAST(FnName, Function_Argument_Names, Kind != 0, BinaryPrecedence);
 }
 static FunctionDefnAST *func_defn_parser()
 {
@@ -561,16 +631,6 @@ static FunctionDefnAST *func_defn_parser()
         return 0;
 }
 
-
-static std::map<char, int> Operator_Precedence;
-static void init_precedence()
-{
-        Operator_Precedence['<'] = 0;
-        Operator_Precedence['-'] = 1;
-        Operator_Precedence['+'] = 2;
-        Operator_Precedence['/'] = 3;
-        Operator_Precedence['*'] = 4;
-}
 static int getBinOpPrecedence()
 {
         //printf("Inside getBinOpPrecedence:\n");
