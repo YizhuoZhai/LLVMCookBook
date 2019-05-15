@@ -190,3 +190,36 @@ entry:
   ret i32 9
 }
 ```
+## Chapter-4
+This chapter introduces writing the LLVM pass, there are a few tasks.
+###1. Writing your own pass
+The FuncBolckCount should be put under /dir/to/llvm/src/projects
+Then go to /dir/to/llvm/src/../ and create a build folder
+```
+$cd build
+$cmake -G "Unix Makefiles" ../llvm-7.0.0.src
+$make
+$opt -load dir/to/build/lib/funcBlockCountlib.dylib -funcblockcount sample.ll
+```
+Output:
+```
+Function foo
+Function ha
+```
+###2. Using another pass in a new pass
+The FuncBolckCount should be put under /dir/to/llvm/src/projects, go to the build folder created in the first task
+```
+$make
+$opt -load ../../../llvm/build/lib/funcBlockCountlib.dylib -funcblockcount sample.ll
+```
+Output:
+```
+Function main
+Loop level 0 has 11 blocks
+Loop level 1 has 3 blocks
+Loop level 1 has 3 blocks
+Loop level 0 has 15 blocks
+Loop level 1 has 7 blocks
+Loop level 2 has 3 blocks
+Loop level 1 has 3 blocks
+```
