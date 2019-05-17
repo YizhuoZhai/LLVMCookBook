@@ -1,5 +1,7 @@
 # LLVMCookBook
-This project will work throughout the example inside "LLVM CookBook", which write a frontend and optimizer for a TOY language. 
+This project will work throughout the example inside "LLVM CookBook", which write a frontend for a TOY language and then the optimizer, backend.
+Newer versions of LLVM are released since the book published, the difference will be explained as "Version Updates Notes". While the errata will
+also be explained as "Book Errata"
 ## Requirements
 - LLVM 7.0.0
 - clang 7.0.0
@@ -29,6 +31,8 @@ entry:
   ret i32 %addtmp
 }
 ```
+Book Errata: According to the implementation of lexer, the arguments in example should be separated by space instead of comma.
+Version Updates Notes: Some variables in lexer and parser are changed to be pointer type instead of primitive type, please refer to the code for details.
 ## Chapter-3
 Add the if/for/binary/unary statement or operations for front-end, and also add the JIT support, go to the corresponding directory:
 ```
