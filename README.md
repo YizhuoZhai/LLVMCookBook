@@ -2,7 +2,8 @@
 This project will work throughout the example inside "LLVM CookBook", which write a frontend for a TOY language and then the optimizer, backend.
 Newer versions of LLVM are released since the book published, the difference will be explained as "Version Updates Notes". While the errata will
 also be explained as "Book Errata"
-## Requirements
+## Environments:
+- MacOS Mojave version 10.14.4
 - LLVM 7.0.0
 - clang 7.0.0
 ## Chapter-1
@@ -197,7 +198,11 @@ entry:
 ## Chapter-4
 This chapter introduces writing the LLVM pass, there are a few tasks.
 ###1. Writing your own pass
-The FuncBolckCount should be put under /dir/to/llvm/src/projects
+Put FuncBolckCount under /dir/to/llvm/src/lib/Transforms
+Then add the following line to CMakeLists.txt under /dir/to/llvm/src/lib/Transforms:
+```
+add_subdirectory(FuncBlockCount)
+```
 Then go to /dir/to/llvm/src/../ and create a build folder
 ```
 $cd build
@@ -211,10 +216,25 @@ Function foo
 Function ha
 ```
 ###2. Using another pass in a new pass
-The FuncBolckCount should be put under /dir/to/llvm/src/projects, go to the build folder created in the first task
+Put FuncBolckCount under /dir/to/llvm/src/lib/Transforms, go to the build folder created in the first task
 ```
 $make
 $opt -load ../../../llvm/build/lib/funcBlockCountlib.dylib -funcblockcount sample.ll
+```
+Output:
+```
+Function main
+Loop level 0 has 11 blocks
+Loop level 1 has 3 blocks
+Loop level 1 has 3 blocks
+Loop level 0 has 15 blocks
+Loop level 1 has 7 blocks
+Loop level 2 has 3 blocks
+Loop level 1 has 3 blocks
+```
+###3. Registering a pass with pass manager
+```
+opt -funcblockcount example.ll
 ```
 Output:
 ```
