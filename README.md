@@ -247,3 +247,22 @@ Loop level 1 has 7 blocks
 Loop level 2 has 3 blocks
 Loop level 1 has 3 blocks
 ```
+Version Updates Notes:Include "llvm/Transforms/Scalar.h" in FuncBlockCount.cpp
+###4. Write an analysis pass
+This task implement a function pass, and the work scheme is the same as task 1.
+```
+$opt -load dir/to/build/lib/LLVMCountopcodes.dylib -opcodeCounter -disable-output testcode.bc
+```
+Output:
+```
+Function func
+add: 3
+alloca: 5
+br: 8
+icmp: 3
+load: 10
+ret: 1
+select: 1
+store: 8
+zext: 1
+```
