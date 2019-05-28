@@ -266,3 +266,7 @@ select: 1
 store: 8
 zext: 1
 ```
+###5. Write an alias analysis pass
+Have no idea if the method in book still works
+###6. Using other analysis passes
+This task shows some build-in passes, there's no difficulty to do so now.
