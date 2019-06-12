@@ -7,7 +7,7 @@ In this task, the instruction which are not used will be removed from IR.
 This task does always inline optimization of IR.
 Version Updates Notes: Class "Inliner" and the corresponding methods are removed in llvm.
 ```
-$opt -inline-threshold=0 -always-inline -S testcode.ll
+$opt -my-inline -S testcode.ll
 ```
 Result:
 ```
@@ -22,4 +22,11 @@ define i32 @inner1() #0 {
 define i32 @outer1() {
   ret i32 1
 }
+
+attributes #0 = { alwaysinline }
+```
+##Task-3:Use the memcpyopt pass built in llvm already
+Source code: llvm/lib/Transforms/Scalar/MemCpyOptimizer.cpp
+```
+opt -memcpyopt -S testcode.ll
 ```
