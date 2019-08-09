@@ -1,0 +1,49 @@
+=================================================================
+==53290==ERROR: AddressSanitizer: stack-buffer-overflow on address 0x7ffee11096d8 at pc 0x00010eaf6e54 bp 0x7ffee1109690 sp 0x7ffee1109688
+READ of size 4 at 0x7ffee11096d8 thread T0
+==53290==WARNING: invalid path to external symbolizer!
+==53290==WARNING: Failed to use and restart external symbolizer!
+    #0 0x10eaf6e53 in main (/Users/yizhuo/Documents/TOYCompiler/LLVMCookBook/Chapter-9/sanitizer/./a.out:x86_64+0x100000e53)
+    #1 0x7fff6b2dd3d4 in start (/usr/lib/system/libdyld.dylib:x86_64+0x163d4)
+
+Address 0x7ffee11096d8 is located in stack of thread T0 at offset 56 in frame
+    #0 0x10eaf6d2f in main (/Users/yizhuo/Documents/TOYCompiler/LLVMCookBook/Chapter-9/sanitizer/./a.out:x86_64+0x100000d2f)
+
+  This frame has 1 object(s):
+    [32, 52) 'a' <== Memory access at offset 56 overflows this variable
+HINT: this may be a false positive if your program uses some custom stack unwind mechanism, swapcontext or vfork
+      (longjmp and C++ exceptions *are* supported)
+SUMMARY: AddressSanitizer: stack-buffer-overflow (/Users/yizhuo/Documents/TOYCompiler/LLVMCookBook/Chapter-9/sanitizer/./a.out:x86_64+0x100000e53) in main
+Shadow bytes around the buggy address:
+  0x1fffdc221280: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x1fffdc221290: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x1fffdc2212a0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x1fffdc2212b0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x1fffdc2212c0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+=>0x1fffdc2212d0: 00 00 00 00 f1 f1 f1 f1 00 00 04[f3]f3 f3 f3 f3
+  0x1fffdc2212e0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x1fffdc2212f0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x1fffdc221300: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x1fffdc221310: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x1fffdc221320: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Shadow byte legend (one shadow byte represents 8 application bytes):
+  Addressable:           00
+  Partially addressable: 01 02 03 04 05 06 07 
+  Heap left redzone:       fa
+  Freed heap region:       fd
+  Stack left redzone:      f1
+  Stack mid redzone:       f2
+  Stack right redzone:     f3
+  Stack after return:      f5
+  Stack use after scope:   f8
+  Global redzone:          f9
+  Global init order:       f6
+  Poisoned by user:        f7
+  Container overflow:      fc
+  Array cookie:            ac
+  Intra object redzone:    bb
+  ASan internal:           fe
+  Left alloca redzone:     ca
+  Right alloca redzone:    cb
+  Shadow gap:              cc
+==53290==ABORTING
